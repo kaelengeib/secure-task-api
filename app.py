@@ -141,45 +141,41 @@ def update_task(task_id):
     
     data = request.get_json()
     
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Check if task exists and belongs to user
-    cursor.execute('SELECT id FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
-    task = cursor.fetchone()
-    
-    if not task:
-        conn.close()
-        return jsonify({"error": "Task not found"}), 404
-    
-    # Update task
-    title = data.get('title')
-    description = data.get('description')
-    completed = data.get('completed')
-    
-    updates = []
-    params = []
-    
-    if title is not None:
-        updates.append('title = ?')
-        params.append(title)
-    if description is not None:
-        updates.append('description = ?')
-        params.append(description)
-    if completed is not None:
-        updates.append('completed = ?')
-        params.append(1 if completed else 0)
-    
-    if updates:
-        params.append(task_id)
-        params.append(user_id)
-        cursor.execute(f'UPDATE tasks SET {", ".join(updates)} WHERE id = ? AND user_id = ?', params)
-        conn.commit()
-    
-    conn.close()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if task exists and belongs to user
+        cursor.execute('SELECT id FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
+        task = cursor.fetchone()
+        
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        
+        # Update task
+        title = data.get('title')
+        description = data.get('description')
+        completed = data.get('completed')
+        
+        updates = []
+        params = []
+        
+        if title is not None:
+            updates.append('title = ?')
+            params.append(title)
+        if description is not None:
+            updates.append('description = ?')
+            params.append(description)
+        if completed is not None:
+            updates.append('completed = ?')
+            params.append(1 if completed else 0)
+        
+        if updates:
+            params.append(task_id)
+            params.append(user_id)
+            cursor.execute(f'UPDATE tasks SET {", ".join(updates)} WHERE id = ? AND user_id = ?', params)
+            conn.commit()
     
     return jsonify({"message": "Task updated"}), 200
-
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
@@ -187,16 +183,13 @@ def delete_task(task_id):
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
     
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
-    conn.commit()
-    
-    if cursor.rowcount == 0:
-        conn.close()
-        return jsonify({"error": "Task not found"}), 404
-    
-    conn.close()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM tasks WHERE id = ? AND user_id = ?', (task_id, user_id))
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Task not found"}), 404
     
     return jsonify({"message": "Task deleted"}), 200
 
